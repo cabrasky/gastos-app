@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-gastos_user}
+      POSTGRES_PASSWORD: ${DB_PASS:-gastos_password}
+      POSTGRES_DB: ${DB_NAME:-gastos}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gastos_user} -d ${DB_NAME:-gastos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-gastos_user}
+      DB_PASS: ${DB_PASS:-gastos_password}
+      DB_NAME: ${DB_NAME:-gastos}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/auth/google/callback}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8121}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "8121:80"
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  pgdata:

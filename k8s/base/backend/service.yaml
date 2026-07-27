@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: gastos
+  labels:
+    app: gastos
+    component: backend
+spec:
+  selector:
+    app: gastos
+    component: backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
