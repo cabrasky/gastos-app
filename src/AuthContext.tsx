@@ -1,6 +1,6 @@
 /* ── AuthContext: manages login state across the app ───────────────────────── */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { login as apiLogin, register as apiRegister, getMe, getGoogleAuthUrl, setToken, getToken, setStoredUser, getStoredUser } from '../api';
+import { login as apiLogin, register as apiRegister, getMe, getGoogleAuthUrl, setToken, getToken, setStoredUser, getStoredUser } from './api';
 
 interface User {
   id: string;
