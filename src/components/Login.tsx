@@ -1,10 +1,11 @@
 /* ── Login Page ─────────────────────────────────────────────────────────────── */
 import { useState } from 'react';
 import { useAuth } from '../AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const { login, googleLogin } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,6 +17,7 @@ export default function Login() {
     setBusy(true);
     try {
       await login(email, password);
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     }

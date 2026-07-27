@@ -1,10 +1,11 @@
 /* ── Register Page ──────────────────────────────────────────────────────────── */
 import { useState } from 'react';
 import { useAuth } from '../AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export default function Register() {
   const { register } = useAuth();
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,6 +22,7 @@ export default function Register() {
     setBusy(true);
     try {
       await register(email, password, name);
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     }
