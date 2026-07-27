@@ -330,3 +330,6 @@ async def update_oauth_config(
 
     await db.flush()
     return {"status": "updated"}
+
+# Deprecated alias — kept for backward compatibility with existing router imports
+get_user_from_bearer = get_current_user
