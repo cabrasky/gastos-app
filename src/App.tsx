@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { AuthProvider, useAuth } from './AuthContext';
 import { loadData, deleteExpense } from './store';
 import AddExpense from './components/AddExpense';
 import Dashboard from './components/Dashboard';
@@ -40,7 +40,7 @@ function MonthlyCharts({ expenses, incomes }: { expenses: any[]; incomes: any[] 
   );
 }
 
-export default function App() {
+function AppContent() {
   const { user, loading } = useAuth();
   const [layout, setLayout] = useState<'desktop' | 'mobile'>(getSavedLayout);
   const [data, setData] = useState(() => loadData());
@@ -157,9 +157,6 @@ export default function App() {
     </Routes>
   );
 
-  // Add admin link to MoreMenu — inject extra items via layout?
-  // For now, /admin route is accessible directly
-
   if (layout === 'desktop') {
     return (
       <DesktopLayout
@@ -183,5 +180,13 @@ export default function App() {
       </MobileLayout>
       <AddExpense isOpen={showAddModal} editExpense={editExpense} onClose={handleCloseAdd} onSaved={handleSave} />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
