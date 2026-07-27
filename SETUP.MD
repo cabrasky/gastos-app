@@ -110,6 +110,21 @@ The app will be available at `https://gastos.cabrasky.net` (configured in `k8s/b
 
 3. Jenkins will use the `Jenkinsfile` at the root of the repo.
 
+### GitHub Webhook
+
+The webhook is already configured on the repository. It pushes `push` and `pull_request` events to:
+
+```
+https://jenkins.cabrasky.net/github-webhook/
+```
+
+This triggers the multibranch pipeline automatically on every push and PR.
+
+To verify:
+```bash
+gh api repos/cabrasky/gastos-app/hooks --jq '.[] | {url: .config.url, events, active}'
+```
+
 ### Pipeline Behaviour
 
 | Trigger | Action |
