@@ -1,0 +1,97 @@
+import { useState, useMemo } from 'react';
+import { REF, getMonth } from '../types';
+import type { Expense } from '../types';
+import { IconSearch, IconEdit, IconTrash, IconCheckCircle, IconXCircle } from './Icons';
+
+interface Props {
+  expenses: Expense[];
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export default function ExpenseList({ expenses, onEdit, onDelete }: Props) {
+  const [search, setSearch] = useState('');
+  const [filterProp, setFilterProp] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+
+  const filtered = useMemo(() => {
+    let list = [...expenses].sort((a, b) => b.date.localeCompare(a.date));
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(e => e.desc.toLowerCase().includes(q) || e.motivo.toLowerCase().includes(q));
+    }
+    if (filterProp) list = list.filter(e => e.proposito === filterProp);
+    if (filterMonth) list = list.filter(e => getMonth(e.date) === Number(filterMonth));
+    return list;
+  }, [expenses, search, filterProp, filterMonth]);
+
+  const total = filtered.reduce((s, e) => s + e.amount, 0);
+
+  return (
+    <div className="card">
+      <div className="card-header">
+        <h3>Gastos ({filtered.length})</h3>
+        <span className="card-total">{total.toFixed(2)} EUR</span>
+      </div>
+
+      <div className="search-box">
+        <div className="search-input-wrap">
+          <IconSearch size={14} />
+          <input type="text" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} />
+        </div>
+        <select value={filterProp} onChange={e => setFilterProp(e.target.value)}>
+          <option value="">Todos</option>
+          {REF.propositos.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)}>
+          <option value="">Todos los meses</option>
+          {REF.meses.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+        </select>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty">
+          <IconSearch size={24} />
+          <p>Sin resultados</p>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Descripcion</th><th>Importe</th><th>Proposito</th><th>Metodo</th><th>Deuda</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(e => (
+                <tr key={e.id}>
+                  <td>{e.date}</td>
+                  <td>
+                    <strong>{e.desc}</strong>
+                    {e.motivo && <span className="td-meta">{e.motivo}</span>}
+                  </td>
+                  <td className="td-amount">{e.amount.toFixed(2)} EUR</td>
+                  <td><span className={`tag tag-${e.proposito?.toLowerCase().replace(/\s/g, '')}`}>{e.proposito}</span></td>
+                  <td className="td-muted">{e.metodo}</td>
+                  <td className="td-icon">
+                    {e.deudores ? (
+                      e.devuelto === 'yes'
+                        ? <IconCheckCircle size={14} className="icon-success" />
+                        : <IconXCircle size={14} className="icon-danger" />
+                    ) : <span className="td-muted">-</span>}
+                  </td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="btn sm outline" onClick={() => onEdit(e.id)} title="Editar"><IconEdit size={14} /></button>
+                      <button className="btn sm danger" onClick={() => onDelete(e.id)} title="Eliminar"><IconTrash size={14} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
