@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from app.database import get_db
 from app.models.models import Income
 from app.schemas.schemas import IncomeCreate, IncomeUpdate, IncomeOut
-from app.routers.auth import get_user_from_bearer
+from app.routers.auth import get_user_from_bearer as get_current_user
 from app.routers.crud import get_entity, create_entity, update_entity, delete_entity
 
 router = APIRouter(prefix="/incomes", tags=["incomes"])
