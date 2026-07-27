@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 import { loadData, deleteExpense } from './store';
 import AddExpense from './components/AddExpense';
 import Dashboard from './components/Dashboard';
@@ -14,6 +15,9 @@ import SanityCheck from './components/SanityCheck';
 import SubscriptionsPage from './components/Subscriptions';
 import DesktopLayout from './components/DesktopLayout';
 import MobileLayout from './components/MobileLayout';
+import Login from './components/Login';
+import Register from './components/Register';
+import AdminPanel from './components/AdminPanel';
 import { MonthlyChart, CashFlowChart, BalanceEvolution, IncomeExpenseComparison, SankeyChart } from './components/Charts';
 import './App.css';
 
@@ -37,6 +41,7 @@ function MonthlyCharts({ expenses, incomes }: { expenses: any[]; incomes: any[] 
 }
 
 export default function App() {
+  const { user, loading } = useAuth();
   const [layout, setLayout] = useState<'desktop' | 'mobile'>(getSavedLayout);
   const [data, setData] = useState(() => loadData());
   const [editId, setEditId] = useState<string | null>(null);
@@ -95,6 +100,23 @@ export default function App() {
     layout, onLayoutChange: setLayout,
   };
 
+  // Show loading screen while checking auth
+  if (loading) {
+    return <div className="loading-screen"><h2>Gastos App</h2><p>Cargando...</p></div>;
+  }
+
+  // Auth routes (always accessible)
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Main app routes
   const routes = (
     <Routes>
       <Route index element={<Navigate to="/dashboard" replace />} />
@@ -129,8 +151,14 @@ export default function App() {
       <Route path="/more/sanity" element={
         <SanityCheck expenses={data.expenses} />
       } />
+      <Route path="/admin" element={
+        <AdminPanel />
+      } />
     </Routes>
   );
+
+  // Add admin link to MoreMenu — inject extra items via layout?
+  // For now, /admin route is accessible directly
 
   if (layout === 'desktop') {
     return (

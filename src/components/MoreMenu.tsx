@@ -21,6 +21,11 @@ export default function MoreMenu() {
           <div className="more-desc">{t(item.descKey)}</div>
         </Link>
       ))}
+      <Link to="/admin" className="more-card admin-card" style={{ textDecoration: 'none' }}>
+        <div className="more-icon">⚙️</div>
+        <div className="more-label">Admin</div>
+        <div className="more-desc">Configuración de OAuth y usuarios</div>
+      </Link>
     </div>
   );
 }

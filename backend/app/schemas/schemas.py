@@ -6,13 +6,19 @@ from pydantic import BaseModel, Field
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-class GoogleAuthRequest(BaseModel):
-    code: str
-    redirect_uri: str
+class RegisterRequest(BaseModel):
+    email: str
+    password: str = Field(min_length=6)
+    name: str
 
 
-class TokenResponse(BaseModel):
-    access_token: str
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class AuthResponse(BaseModel):
+    token: str
     token_type: str = "bearer"
     user: "UserOut"
 
@@ -21,9 +27,34 @@ class UserOut(BaseModel):
     id: str
     email: str
     name: str
-    avatar_url: str
+    avatar_url: str = ""
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class GoogleAuthRequest(BaseModel):
+    code: str
+    redirect_uri: str = ""
+
+
+# ── Admin / OAuth ─────────────────────────────────────────────────────────────
+
+class OAuthConfigOut(BaseModel):
+    provider: str
+    client_id: str
+    redirect_uri: str
+    enabled: bool
+
+    model_config = {"from_attributes": True}
+
+
+class OAuthConfigUpdate(BaseModel):
+    provider: str = "google"
+    client_id: str = ""
+    client_secret: str = ""
+    redirect_uri: str = ""
+    enabled: bool = False
 
 
 # ── Expenses ──────────────────────────────────────────────────────────────────
