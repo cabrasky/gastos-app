@@ -27,11 +27,9 @@ services:
       DB_PORT: "5432"
       DB_USER: ${DB_USER:-gastos_user}
       DB_PASS: ${DB_PASS:-gastos_password}
-      DB_NAME: ${DB_NAME:-gastos}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/auth/google/callback}
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+
+      APP_URL: http://backend:8000
+      DB_HOST
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8121}
     ports:
       - "8000:8000"

@@ -56,16 +56,8 @@ spec:
                 secretKeyRef:
                   name: gastos-secrets
                   key: JWT_SECRET
-            - name: GOOGLE_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: gastos-secrets
-                  key: GOOGLE_CLIENT_ID
-            - name: GOOGLE_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: gastos-secrets
-                  key: GOOGLE_CLIENT_SECRET
+            - name: APP_URL
+              value: "http://backend.gastos:8000"
             - name: FRONTEND_URL
               value: "https://gastos.cabrasky.net"
           readinessProbe:
