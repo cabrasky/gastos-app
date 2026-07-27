@@ -127,7 +127,7 @@ pipeline {
             }
             steps {
                 script {
-                    sh "DOCKER_BUILDKIT=0 docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} -f Dockerfile.frontend ."
+                    sh "DOCKER_BUILDKIT=0 docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} -f frontend/Dockerfile frontend/"
                     sh "docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}"
                     if (env.IS_MAIN == 'true') {
                         sh "docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${FRONTEND_IMAGE}:latest"
