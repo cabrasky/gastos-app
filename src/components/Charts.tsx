@@ -310,73 +310,99 @@ export function SankeyChart({ expenses, incomes }: { expenses: Expense[]; income
 
   const { sources, targets } = sankey;
 
-  // ── Layout constants ──
-  const W = 640, H = 440, PAD = 30;
+  // ── Layout ──
+  const W = 640, H = 440, PAD = 30, GAP = 8;
+  const MIN_H = 8;
+  const COL_W = 14;                       // node bar width
+  const LEFT_X = 80, RIGHT_X = 395;       // node bar x positions
   const availH = H - 2 * PAD;
-  const GAP = 8;
-  const MIN_NODE_H = 8;                // minimum visible node height
-  const LEFT_X = 80, S_RECT_W = 14;   // source column
-  const HUB_X = 215, HUB_W = 0;       // hub is invisible — flows connect here
-  const RIGHT_X = 395, T_RECT_W = 14; // target column
-  // Flows converge slightly: hub is 85% of availH so outer nodes curve gently
-  const HUB_H = Math.round(availH * 0.85);
-  const HUB_Y = PAD + Math.round((availH - HUB_H) / 2);
+  const SRC_EDGE = LEFT_X + COL_W;        // right edge of source bars
+  const TGT_EDGE = RIGHT_X;               // left edge of target bars
 
   // ── Colors ──
   const srcColors = ['#22c55e', '#16a34a', '#86efac'];
-  const groupColors: Record<string, string> = {
+  const grpColor: Record<string, string> = {
     savings: '#3b82f6', fixed: '#f59e0b', disc: '#ef4444', other: '#8b5cf6',
   };
-
-  // ── Source node layout ──
-  const srcTotal = sources.reduce((s, [, v]) => s + v, 0) || 1;
-  const tgtTotal = targets.reduce((s, t) => s + t.val, 0) || 1;
-  const srcAvail = availH - (sources.length - 1) * GAP;
-  const srcH = sources.map(([, v]) => Math.max(MIN_NODE_H, (v / srcTotal) * srcAvail));
-  let sy = PAD;
-  const srcRects = sources.map(([name, val], i) => {
-    const y = sy; sy += srcH[i] + GAP;
-    return { name, val, y, h: srcH[i], cy: y + srcH[i] / 2, color: srcColors[i % srcColors.length] };
-  });
-
-  // ── Target node layout ──
-  const tgtAvail = availH - (targets.length - 1) * GAP;
-  const tgtH = targets.map(t => Math.max(MIN_NODE_H, (t.val / tgtTotal) * tgtAvail));
-  let ty = PAD;
-  const tgtRects = targets.map((t, i) => {
-    const y = ty; ty += tgtH[i] + GAP;
-    return { name: t.name, val: t.val, y, h: tgtH[i], cy: y + tgtH[i] / 2, color: groupColors[t.group] || '#8b5cf6', group: t.group };
-  });
-
-  // ── Hub entry/exit positions (no height compression — full node height) ──
-  let cumSrc = 0;
-  const srcHub = sources.map(([, _val], i) => {
-    const h = srcH[i];  // same height as source node (no pinch)
-    const cy = HUB_Y + (cumSrc + h / 2) / availH * HUB_H;
-    cumSrc += h;
-    return { cy, h };
-  });
-  let cumTgt = 0;
-  const tgtHub = targets.map((_t, i) => {
-    const h = tgtH[i];  // same height as target node (no pinch)
-    const cy = HUB_Y + (cumTgt + h / 2) / availH * HUB_H;
-    cumTgt += h;
-    return { cy, h };
-  });
-
-  // ── Tapered flow path with natural curves ──
-  // Control points: 75% of horizontal distance stays at source y,
-  // then curves in the last 25% toward target y.
-  const flowPath = (x1: number, y1: number, w1: number, x2: number, y2: number, w2: number) => {
-    const dx = x2 - x1, cpx1 = x1 + dx * 0.78, cpx2 = x2 - dx * 0.10;
-    const y1t = y1 - w1 / 2, y1b = y1 + w1 / 2;
-    const y2t = y2 - w2 / 2, y2b = y2 + w2 / 2;
-    return `M${x1} ${y1t} C${cpx1} ${y1t}, ${cpx2} ${y2t}, ${x2} ${y2t} L${x2} ${y2b} C${cpx2} ${y2b}, ${cpx1} ${y1b}, ${x1} ${y1b} Z`;
+  const grpOpacity: Record<string, number> = {
+    savings: 0.20, fixed: 0.17, disc: 0.14, other: 0.15,
   };
 
-  // ── Helpers ──
+  // ── Node geometry ──
+  // Source nodes (left column)
+  const srcTotal = sources.reduce((s, [, v]) => s + v, 0) || 1;
+  const tgtTotal = targets.reduce((s, t) => s + t.val, 0) || 1;
+  const srcAH = availH - (sources.length - 1) * GAP;
+  const srcH = sources.map(([, v]) => Math.max(MIN_H, (v / srcTotal) * srcAH));
+  let sy = PAD;
+  const srcNodes = sources.map(([name, val], i) => {
+    const y = sy; sy += srcH[i] + GAP;
+    return { name, val, y, h: srcH[i], b: y + srcH[i], color: srcColors[i % srcColors.length] };
+  });
+
+  // Target nodes (right column)
+  const tgtAH = availH - (targets.length - 1) * GAP;
+  const tgtH = targets.map(t => Math.max(MIN_H, (t.val / tgtTotal) * tgtAH));
+  let ty = PAD;
+  const tgtNodes = targets.map((t, i) => {
+    const y = ty; ty += tgtH[i] + GAP;
+    return { name: t.name, val: t.val, y, h: tgtH[i], b: y + tgtH[i], color: grpColor[t.group] || '#8b5cf6', group: t.group };
+  });
+
+  // ── Build flows (port-based: each source→target pair gets a slice) ──
+  // Cumulative proportions so each source distributes to all targets
+  // and each target receives from all sources.
+  let cumT = 0;
+  const tgtProp = targets.map(t => { const s = cumT; cumT += t.val / tgtTotal; return { start: s, end: cumT }; });
+  let cumS = 0;
+  const srcProp = sources.map(([, v]) => { const s = cumS; cumS += v / srcTotal; return { start: s, end: cumS }; });
+
   const totalDisp = sankey.totalInc;
-  // Custom formatter: "16 150 €" with thin spaces
+  const MIN_FLOW = totalDisp * 0.002;     // skip flows under 0.2%
+
+  interface Link { si: number; ti: number; sT: number; sB: number; tT: number; tB: number; val: number; grp: string; }
+  const links: Link[] = [];
+
+  for (let si = 0; si < sources.length; si++) {
+    for (let ti = 0; ti < targets.length; ti++) {
+      const flow = (sources[si][1] / srcTotal) * targets[ti].val;
+      if (flow < MIN_FLOW) continue;
+      const sT = srcNodes[si].y + tgtProp[ti].start * srcH[si];
+      const sB = srcNodes[si].y + tgtProp[ti].end * srcH[si];
+      const tT = tgtNodes[ti].y + srcProp[si].start * tgtH[ti];
+      const tB = tgtNodes[ti].y + srcProp[si].end * tgtH[ti];
+      links.push({ si, ti, sT, sB, tT, tB, val: flow, grp: targets[ti].group });
+    }
+  }
+
+  // ── Single continuous flow path: source-edge → target-edge ──
+  // easeInOut-inspired control points at 40% / 60%
+  const dx = TGT_EDGE - SRC_EDGE;
+  const CP = dx * 0.40;
+  const flowPath = (sT: number, sB: number, tT: number, tB: number) =>
+    `M${SRC_EDGE} ${sT} C${SRC_EDGE + CP} ${sT}, ${TGT_EDGE - CP} ${tT}, ${TGT_EDGE} ${tT} L${TGT_EDGE} ${tB} C${TGT_EDGE - CP} ${tB}, ${SRC_EDGE + CP} ${sB}, ${SRC_EDGE} ${sB} Z`;
+
+  // ── Group section dividers — positioned at exact gap midpoint ──
+  const grpFirst: Record<string, number> = {};
+  targets.forEach((t, i) => { if (grpFirst[t.group] === undefined) grpFirst[t.group] = i; });
+  const groupDivs = Object.entries(grpFirst).map(([g, idx]) => {
+    const node = tgtNodes[idx];
+    // If it's the first group, divider is just above the first node
+    const prevBottom = idx > 0 ? tgtNodes[idx - 1].b : PAD;
+    const midY = Math.round((prevBottom + node.y) / 2);
+    return {
+      label: g === 'savings' ? 'AHORRO' : g === 'fixed' ? 'GASTOS FIJOS' : g === 'disc' ? 'GASTOS VARIABLES' : '',
+      color: grpColor[g],
+      y: midY,
+    };
+  }).filter(d => d.label);
+
+  // ── Hub label — centered on the flow bounding box ──
+  const labelMidX = Math.round((SRC_EDGE + TGT_EDGE) / 2);
+  // Vertical center: weighted by flow volume, or just H/2
+  const labelY = Math.round(H / 2);
+
+  // ── Helpers ──
   const fmt = (v: number) => {
     const s = Math.round(v).toString();
     const parts: string[] = [];
@@ -385,21 +411,6 @@ export function SankeyChart({ expenses, incomes }: { expenses: Expense[]; income
   };
   const pct = (v: number) => ((v / totalDisp) * 100).toFixed(0) + '\u00A0%';
 
-  // Dynamic opacity: large flows get lower opacity so small ones remain visible
-  const flowOpacity = (val: number) => Math.max(0.07, Math.min(0.18, 25 / (val / totalDisp * 100 + 8)));
-
-  // Group section info — divider between groups, label below
-  const groupFirstIdx: Record<string, number> = {};
-  targets.forEach((t, i) => { if (groupFirstIdx[t.group] === undefined) groupFirstIdx[t.group] = i; });
-  const groupInfo = Object.entries(groupFirstIdx).map(([g, idx]) => ({
-    label: g === 'savings' ? 'AHORRO' : g === 'fixed' ? 'GASTOS FIJOS' : g === 'disc' ? 'GASTOS VARIABLES' : '',
-    color: groupColors[g],
-    y: tgtRects[idx].y - GAP + 2,  // divider line between groups
-  })).filter(g => g.label);
-
-  // Center x for hub label
-  const HUB_LABEL_X = Math.round((LEFT_X + S_RECT_W + RIGHT_X) / 2);
-
   return (
     <div className="card">
       <div className="card-header">
@@ -407,33 +418,25 @@ export function SankeyChart({ expenses, incomes }: { expenses: Expense[]; income
       </div>
       <div style={{ width: '100%', overflowX: 'auto' }}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', minWidth: 520, maxHeight: 440 }}>
-
           <defs>
             <filter id="hubShadow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx={0} dy={1} stdDeviation={1.5} floodColor="#000" floodOpacity={0.10} />
             </filter>
           </defs>
 
-          {/* ═══ Source flows: income → hub (invisible) ═══ */}
-          {srcRects.map((s, i) => (
-            <path key={`sf${i}`}
-              d={flowPath(LEFT_X + S_RECT_W, s.cy, s.h, HUB_X, srcHub[i].cy, srcHub[i].h)}
-              fill={s.color} fillOpacity={flowOpacity(s.val)} stroke="none" />
+          {/* ═══ Direct source → target flows (port-based, single river) ═══ */}
+          {links.map((lnk, i) => (
+            <path key={`l${i}`}
+              d={flowPath(lnk.sT, lnk.sB, lnk.tT, lnk.tB)}
+              fill={grpColor[lnk.grp] || '#8b5cf6'} fillOpacity={grpOpacity[lnk.grp] || 0.15} stroke="none" />
           ))}
 
-          {/* ═══ Target flows: hub (invisible) → destination ═══ */}
-          {tgtRects.map((t, i) => (
-            <path key={`tf${i}`}
-              d={flowPath(HUB_X + HUB_W, tgtHub[i].cy, tgtHub[i].h, RIGHT_X, t.cy, t.h)}
-              fill={t.color} fillOpacity={flowOpacity(t.val)} stroke="none" />
-          ))}
-
-          {/* ═══ Floating hub label over the flow — no badge, just text ═══ */}
+          {/* ═══ Hub label — no badge, text with outline over the flow ═══ */}
           <g filter="url(#hubShadow)">
-            <text x={HUB_LABEL_X} y={HUB_Y + HUB_H / 2 - 8}
+            <text x={labelMidX} y={labelY - 8}
               textAnchor="middle" fill="var(--text)" fontSize={12} fontWeight={700}
               stroke="var(--surface)" strokeWidth={3} paintOrder="stroke">Disponible</text>
-            <text x={HUB_LABEL_X} y={HUB_Y + HUB_H / 2 + 14}
+            <text x={labelMidX} y={labelY + 14}
               textAnchor="middle" fill="var(--primary)" fontSize={16} fontWeight={800}
               stroke="var(--surface)" strokeWidth={3} paintOrder="stroke">{fmt(totalDisp)}</text>
           </g>
@@ -441,10 +444,9 @@ export function SankeyChart({ expenses, incomes }: { expenses: Expense[]; income
           {/* ═══ Source nodes (left) ═══ */}
           <text x={LEFT_X} y={PAD - 8} textAnchor="start" fill="var(--text-muted)"
             fontSize={9} fontWeight={700} letterSpacing="0.14em">INGRESOS</text>
-
-          {srcRects.map((s, i) => (
+          {srcNodes.map((s, i) => (
             <g key={`s${i}`}>
-              <rect x={LEFT_X} y={s.y} width={S_RECT_W} height={s.h} fill={s.color} rx={2} />
+              <rect x={LEFT_X} y={s.y} width={COL_W} height={s.h} fill={s.color} rx={2} />
               <text x={LEFT_X - 4} y={s.y + s.h / 2 + 4} textAnchor="end" fill="var(--text)" fontSize={12} fontWeight={600}>{s.name}</text>
               <text x={LEFT_X - 4} y={s.y + s.h / 2 + 17} textAnchor="end" fill="var(--text-muted)" fontSize={10}>{fmt(s.val)}</text>
               <text x={LEFT_X - 4} y={s.y + s.h / 2 + 27} textAnchor="end" fill="var(--text-muted)" fontSize={9}>{pct(s.val)}</text>
@@ -452,22 +454,22 @@ export function SankeyChart({ expenses, incomes }: { expenses: Expense[]; income
           ))}
 
           {/* ═══ Target nodes (right), grouped ═══ */}
-          {groupInfo.map((g, gi) => (
-            <g key={`gl${gi}`}>
-              <line x1={RIGHT_X} y1={g.y} x2={RIGHT_X + T_RECT_W + 80} y2={g.y}
-                stroke={g.color} strokeWidth={0.5} opacity={0.35} />
-              <text x={RIGHT_X + T_RECT_W + 14} y={g.y + 16}
-                textAnchor="start" fill={g.color} fontSize={9} fontWeight={700} letterSpacing="0.10em" opacity={0.65}>
-                ─ {g.label}
+          {groupDivs.map((d, i) => (
+            <g key={`gd${i}`}>
+              <line x1={RIGHT_X} y1={d.y} x2={RIGHT_X + COL_W + 80} y2={d.y}
+                stroke={d.color} strokeWidth={0.5} opacity={0.30} />
+              <text x={RIGHT_X + COL_W + 14} y={d.y + 14}
+                textAnchor="start" fill={d.color} fontSize={9} fontWeight={700} letterSpacing="0.10em" opacity={0.65}>
+                ─ {d.label}
               </text>
             </g>
           ))}
-          {tgtRects.map((t, i) => (
+          {tgtNodes.map((t, i) => (
             <g key={`t${i}`}>
-              <rect x={RIGHT_X} y={t.y} width={T_RECT_W} height={t.h} fill={t.color} rx={2} />
-              <text x={RIGHT_X + T_RECT_W + 14} y={t.y + t.h / 2 + 4} textAnchor="start" fill="var(--text)" fontSize={12} fontWeight={600}>{t.name}</text>
-              <text x={RIGHT_X + T_RECT_W + 14} y={t.y + t.h / 2 + 17} textAnchor="start" fill="var(--text-muted)" fontSize={10} style={{fontVariantNumeric:'tabular-nums'}}>{fmt(t.val)}</text>
-              <text x={RIGHT_X + T_RECT_W + 14} y={t.y + t.h / 2 + 27} textAnchor="start" fill="var(--text-muted)" fontSize={9} style={{fontVariantNumeric:'tabular-nums'}}>{pct(t.val)}</text>
+              <rect x={RIGHT_X} y={t.y} width={COL_W} height={t.h} fill={t.color} rx={2} />
+              <text x={RIGHT_X + COL_W + 14} y={t.y + t.h / 2 + 4} textAnchor="start" fill="var(--text)" fontSize={12} fontWeight={600}>{t.name}</text>
+              <text x={RIGHT_X + COL_W + 14} y={t.y + t.h / 2 + 17} textAnchor="start" fill="var(--text-muted)" fontSize={10} style={{fontVariantNumeric:'tabular-nums'}}>{fmt(t.val)}</text>
+              <text x={RIGHT_X + COL_W + 14} y={t.y + t.h / 2 + 27} textAnchor="start" fill="var(--text-muted)" fontSize={9} style={{fontVariantNumeric:'tabular-nums'}}>{pct(t.val)}</text>
             </g>
           ))}
         </svg>
