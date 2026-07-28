@@ -14,12 +14,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.models.models import User, OAuthConfig
+from app.models.models import User, OAuthConfig, SmtpConfig
 from app.schemas.schemas import (
     RegisterRequest,
     LoginRequest,
     AuthResponse,
     UserOut,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    MessageResponse,
+    SmtpConfigOut,
+    SmtpConfigUpdate,
     OAuthConfigUpdate,
     OAuthConfigOut,
 )
@@ -283,6 +288,66 @@ async def get_me(
     return UserOut.model_validate(current_user)
 
 
+# ── Password Recovery ─────────────────────────────────────────────────────────
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Send password reset email with one-time token."""
+    from app.mail import send_password_reset_email
+
+    email = body.email.strip().lower()
+
+    # Always return success to prevent email enumeration
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if user and user.password_hash:
+        token = secrets.token_urlsafe(48)
+        user.reset_token = token
+        user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
+        await db.flush()
+
+        sent = await send_password_reset_email(user.email, user.name, token, db=db)
+        if not sent:
+            raise HTTPException(status_code=500, detail="Error al enviar el email")
+
+    return MessageResponse(message="Si el email está registrado, recibirás un enlace para restablecer tu contraseña")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reset password using a valid one-time token."""
+    token = body.token.strip()
+    new_password = body.password
+
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
+
+    result = await db.execute(
+        select(User).where(
+            User.reset_token == token,
+            User.reset_token_expires > datetime.utcnow(),
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Token inválido o expirado")
+
+    user.password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    user.reset_token = None
+    user.reset_token_expires = None
+    await db.flush()
+
+    return MessageResponse(message="Contraseña actualizada correctamente")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ADMIN ROUTES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -333,3 +398,67 @@ async def update_oauth_config(
 
 # Deprecated alias — kept for backward compatibility with existing router imports
 get_user_from_bearer = get_current_user
+
+
+# ── SMTP Admin ─────────────────────────────────────────────────────────────────
+
+@router.get("/admin/smtp", response_model=SmtpConfigOut)
+async def get_smtp_config(
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get SMTP configuration (admin only, password masked)."""
+    result = await db.execute(select(SmtpConfig).limit(1))
+    config = result.scalar_one_or_none()
+    if config:
+        return SmtpConfigOut(
+            host=config.host,
+            port=config.port,
+            user=config.user,
+            from_email=config.from_email,
+            from_name=config.from_name,
+            password_set=bool(config.password),
+        )
+    # Return defaults
+    return SmtpConfigOut(
+        host=settings.smtp_host,
+        port=settings.smtp_port,
+        user=settings.smtp_user,
+        from_email=settings.smtp_from,
+        from_name=settings.smtp_from_name,
+        password_set=False,
+    )
+
+
+@router.put("/admin/smtp")
+async def update_smtp_config(
+    body: SmtpConfigUpdate,
+    admin: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update SMTP configuration (admin only)."""
+    result = await db.execute(select(SmtpConfig).limit(1))
+    config = result.scalar_one_or_none()
+
+    if config:
+        config.host = body.host
+        config.port = body.port
+        config.user = body.user
+        config.from_email = body.from_email
+        config.from_name = body.from_name
+        if body.password:
+            config.password = body.password
+        config.updated_at = datetime.utcnow()
+    else:
+        config = SmtpConfig(
+            host=body.host,
+            port=body.port,
+            user=body.user,
+            password=body.password,
+            from_email=body.from_email,
+            from_name=body.from_name,
+        )
+        db.add(config)
+
+    await db.flush()
+    return {"status": "updated"}

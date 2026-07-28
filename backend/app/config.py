@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     app_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:8121"
 
+    # SMTP
+    smtp_host: str = "mail.cabrasky.net"
+    smtp_port: int = 587
+    smtp_user: str = "gastos@cabrasky.net"
+    smtp_password: str = ""
+    smtp_from: str = "gastos@cabrasky.net"
+    smtp_from_name: str = "Gastos App"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

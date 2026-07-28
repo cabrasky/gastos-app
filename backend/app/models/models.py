@@ -2,6 +2,7 @@
 import enum
 import uuid
 from datetime import date, datetime
+from typing import Optional
 from sqlalchemy import String, Float, Date, DateTime, Boolean, Text, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
@@ -29,6 +30,8 @@ class User(Base):
     avatar_url: Mapped[str] = mapped_column(String(512), default="")
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     code: Mapped[str] = mapped_column(String(16), unique=True, default=gen_uuid)
+    reset_token: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, default=None, index=True)
+    reset_token_expires: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -42,6 +45,19 @@ class OAuthConfig(Base):
     client_secret: Mapped[str] = mapped_column(String(500), default="")
     redirect_uri: Mapped[str] = mapped_column(String(500), default="")
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SmtpConfig(Base):
+    __tablename__ = "smtp_config"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    host: Mapped[str] = mapped_column(String(255), default="mail.cabrasky.net")
+    port: Mapped[int] = mapped_column(default=587)
+    user: Mapped[str] = mapped_column(String(255), default="")
+    password: Mapped[str] = mapped_column(String(255), default="")
+    from_email: Mapped[str] = mapped_column(String(255), default="")
+    from_name: Mapped[str] = mapped_column(String(255), default="Gastos App")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

@@ -38,6 +38,21 @@ class GoogleAuthRequest(BaseModel):
     redirect_uri: str = ""
 
 
+# ── Password Recovery ─────────────────────────────────────────────────────────
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
 # ── Admin / OAuth ─────────────────────────────────────────────────────────────
 
 class OAuthConfigOut(BaseModel):
@@ -55,6 +70,28 @@ class OAuthConfigUpdate(BaseModel):
     client_secret: str = ""
     redirect_uri: str = ""
     enabled: bool = False
+
+
+# ── SMTP Config ───────────────────────────────────────────────────────────────
+
+class SmtpConfigOut(BaseModel):
+    host: str
+    port: int
+    user: str
+    from_email: str
+    from_name: str
+    password_set: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class SmtpConfigUpdate(BaseModel):
+    host: str = "mail.cabrasky.net"
+    port: int = 587
+    user: str = ""
+    password: str = ""
+    from_email: str = ""
+    from_name: str = "Gastos App"
 
 
 # ── Expenses ──────────────────────────────────────────────────────────────────

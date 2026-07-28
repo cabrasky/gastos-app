@@ -75,6 +75,16 @@ export function getGoogleAuthUrl(): string {
   return `${BASE}/auth/google`;
 }
 
+/* ── Password Recovery ─────────────────────────────────────────────────────── */
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return request('POST', '/auth/forgot-password', { email });
+}
+
+export async function resetPassword(token: string, password: string): Promise<{ message: string }> {
+  return request('POST', '/auth/reset-password', { token, password });
+}
+
 /* ── Admin API ─────────────────────────────────────────────────────────────── */
 
 export interface OAuthConfig {
@@ -97,4 +107,30 @@ export async function updateOAuthConfig(config: {
   enabled: boolean;
 }): Promise<{ status: string }> {
   return request('PUT', '/auth/admin/oauth', config, true);
+}
+
+/* ── SMTP Admin ──────────────────────────────────────────────────────────────── */
+
+export interface SmtpConfig {
+  host: string;
+  port: number;
+  user: string;
+  from_email: string;
+  from_name: string;
+  password_set: boolean;
+}
+
+export async function getSmtpConfig(): Promise<SmtpConfig> {
+  return request('GET', '/auth/admin/smtp', undefined, true);
+}
+
+export async function updateSmtpConfig(config: {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  from_email: string;
+  from_name: string;
+}): Promise<{ status: string }> {
+  return request('PUT', '/auth/admin/smtp', config, true);
 }

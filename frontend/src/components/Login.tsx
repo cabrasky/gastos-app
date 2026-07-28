@@ -45,6 +45,9 @@ export default function Login() {
         <p className="auth-link">
           ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
         </p>
+        <p className="auth-link">
+          <Link to="/forgot-password">¿Olvidaste tu contraseña?</Link>
+        </p>
       </div>
     </div>
   );
