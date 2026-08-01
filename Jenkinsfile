@@ -41,7 +41,7 @@ pipeline {
         stage('Read Version') {
             steps {
                 script {
-                    def pkg = sh(script: "jq -r .version package.json", returnStdout: true).trim()
+                    def pkg = sh(script: "jq -r .version frontend/package.json", returnStdout: true).trim()
                     env.APP_VERSION = pkg
                     env.GIT_SHORT = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                 }
