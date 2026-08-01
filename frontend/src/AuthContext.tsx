@@ -34,9 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const data = await getMe();
-      setUser(data.user);
-      setStoredUser(data.user);
+      const user = await getMe();
+      setUser(user);
+      setStoredUser(user);
     } catch {
       setToken(null);
       setStoredUser(null);

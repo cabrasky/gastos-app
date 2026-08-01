@@ -67,7 +67,8 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return request<AuthResponse>('POST', '/auth/login', { email, password });
 }
 
-export async function getMe(): Promise<{ user: AuthResponse['user'] }> {
+export async function getMe(): Promise<AuthResponse['user']> {
+  // Backend /auth/me returns the user object directly (UserOut), not wrapped in {user: ...}
   return request('GET', '/auth/me', undefined, true);
 }
 
