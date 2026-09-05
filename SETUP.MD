@@ -1,4 +1,6 @@
-# gastos-app — Setup Guide
+# mibolsillo-app — miBolsillo Setup Guide
+
+Setup for miBolsillo (web + API). Mobile app: `cabrasky/mibolsillo-mobile` (React Native/Expo).
 
 ## Prerequisites
 
@@ -14,8 +16,8 @@
 ### 1. Clone & env
 
 ```bash
-git clone https://github.com/cabrasky/gastos-app.git
-cd gastos-app
+git clone https://github.com/cabrasky/mibolsillo-app.git
+cd mibolsillo-app
 cp .env.example .env
 ```
 
@@ -54,12 +56,12 @@ Build and push images to your registry:
 
 ```bash
 # Backend
-docker build -t 192.168.1.11:5000/gastos-backend:latest ./backend
-docker push 192.168.1.11:5000/gastos-backend:latest
+docker build -t 100.111.131.248:5000/gastos-backend:latest ./backend
+docker push 100.111.131.248:5000/gastos-backend:latest
 
 # Frontend (multi-stage: build + nginx)
-docker build -t 192.168.1.11:5000/gastos-frontend:latest -f Dockerfile.frontend .
-docker push 192.168.1.11:5000/gastos-frontend:latest
+docker build -t 100.111.131.248:5000/gastos-frontend:latest -f Dockerfile.frontend .
+docker push 100.111.131.248:5000/gastos-frontend:latest
 ```
 
 ---

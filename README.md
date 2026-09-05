@@ -1,6 +1,9 @@
-# gastos-app — Personal Expense Manager
+# miBolsillo (mibolsillo-app) — Personal Expense Manager
 
-Full-stack personal expense tracker with Sankey diagrams, Google OAuth, PostgreSQL, and Kubernetes deployment.
+MiBolsillo: full-stack personal expense tracker with Sankey diagrams, Google OAuth, PostgreSQL, and Kubernetes deployment.
+
+**Producto web:** https://mibolsillo.cabrasky.net · **API:** https://mibolsillo.cabrasky.net/api
+(alias histórico: gastos.cabrasky.net)
 
 | Stack | Tech |
 |-------|------|
@@ -10,6 +13,8 @@ Full-stack personal expense tracker with Sankey diagrams, Google OAuth, PostgreS
 | **DB** | PostgreSQL 16 |
 | **Infra** | Docker, Kubernetes (kustomize), NGINX |
 | **CI/CD** | Jenkins (multibranch pipeline) |
+
+Companion mobile app (React Native / Expo, offline-first): `cabrasky/mibolsillo-mobile`.
 
 ## Quick Start
 
@@ -32,9 +37,12 @@ Open `http://localhost:8121`.
 ## Features
 
 - **Sankey Diagram** — port-based flow visualization (Ingresos → Disponible → Gastos)
+- **Smart suggestions** — category/type/method suggested from your history as you type
+- **Category filters** — charts filterable by category, with monthly averages and year-over-year comparison
+- **Invitations** — flag expenses paid as a treat (no repayment) with filters and totals
 - **i18n** — ES, EN, PT with locale selector
-- **Dual layout** — Desktop sidebar + Mobile bottom nav
-- **Charts** — Recharts (bars, pie, area) + custom SVG Sankey
+- **Dual layout** — Desktop sidebar + Mobile bottom nav (auto-adaptive)
+- **Charts** — Recharts (bars, pie, area, line) + custom SVG Sankey
 - **Google OAuth** — secure login with JWT tokens
 - **Multi-user** — each user's data isolated by user_id
 
