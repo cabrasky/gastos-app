@@ -14,6 +14,7 @@ export interface Expense {
   ajeno: number;
   invitacion?: number;
   deudores?: string;
+  personas?: string;
   deudaMetodo: string;
   devuelto: 'yes' | 'no';
   meCorresponde: number;

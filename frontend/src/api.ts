@@ -152,6 +152,7 @@ export interface ServerExpense {
   ajeno: boolean;
   invitacion: boolean;
   deudores: string;
+  personas: string;
   deuda_metodo: string;
   devuelto: boolean;
   me_corresponde: number;

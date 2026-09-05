@@ -13,6 +13,17 @@ interface Props {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+type Persona = { n: string; m: number; r: 'deb' | 'inv' };
+
+function parsePersonas(raw?: string): Persona[] {
+  if (!raw) return [];
+  try {
+    const a = JSON.parse(raw);
+    if (!Array.isArray(a)) return [];
+    return a.filter((x: any) => x && typeof x.n === 'string').map((x: any) => ({ n: x.n, m: Number(x.m) || 0, r: x.r === 'inv' ? 'inv' as const : 'deb' as const }));
+  } catch { return []; }
+}
+
 export default function AddExpense({ isOpen, editExpense, onClose, onSaved, presetProjectId = '' }: Props) {
   const isEdit = !!editExpense;
   const today = new Date().toISOString().slice(0, 10);
@@ -30,6 +41,7 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
   const [ajeno, setAjeno] = useState(0);
   const [invitacion, setInvitacion] = useState(0);
   const [deudores, setDeudores] = useState('');
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [deudaMetodo, setDeudaMetodo] = useState('Bizum');
   const [devuelto, setDevuelto] = useState<'yes' | 'no'>('no');
   const [viaje, setViaje] = useState('');
@@ -69,6 +81,15 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
       setAjeno(editExpense.ajeno || 0);
       setInvitacion(editExpense.invitacion ? 1 : 0);
       setDeudores(editExpense.deudores || '');
+      setPersonas(editExpense.personas ? parsePersonas(editExpense.personas) : (() => {
+        const raw = (editExpense.deudores || '').trim();
+        if (!raw) return [];
+        const names = raw.split(/\s*(?:,|;|\s+y\s+|\s+e\s+)\s*/).map(x => x.trim()).filter(Boolean);
+        if (!names.length) return [];
+        const tot = Number(editExpense.ajeno) || 0;
+        const per = Math.round((tot / names.length) * 100) / 100;
+        return names.map((n, i) => ({ n, m: i === names.length - 1 ? Math.round((tot - per * (names.length - 1)) * 100) / 100 : per, r: 'deb' as const }));
+      })());
       setDeudaMetodo(editExpense.deudaMetodo || 'Bizum');
       setDevuelto(editExpense.devuelto || 'no');
       setViaje(editExpense.viaje || '');
@@ -85,6 +106,7 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
       setAjeno(0);
       setInvitacion(0);
       setDeudores('');
+      setPersonas([]);
       setDeudaMetodo('Bizum');
       setDevuelto('no');
       setViaje('');
@@ -95,8 +117,11 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
 
   if (!isOpen) return null;
 
-  // "Me corresponde" se calcula solo (importe − gasto ajeno), como en la plantilla
-  const meCorresponde = round2(Math.max(0, amount - ajeno));
+  // "Me corresponde" se calcula solo (importe − partes que te deben), como en la plantilla
+  const debtSum = personas.reduce((s2, x) => s2 + (x.r === 'deb' ? (Number(x.m) || 0) : 0), 0);
+  const invSum = personas.reduce((s2, x) => s2 + (x.r === 'inv' ? (Number(x.m) || 0) : 0), 0);
+  const ajenoEf = personas.length ? debtSum : ajeno;
+  const meCorresponde = round2(Math.max(0, amount - ajenoEf));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,15 +132,19 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const data = {
+    const per = personas.filter(x => x.n.trim());
+    const debtors = per.filter(x => x.r === 'deb');
+    const allInv = per.length > 0 && per.every(x => x.r === 'inv');
+    const data: any = {
       date, desc: desc.trim(), amount: round2(amt), proposito, metodo,
       motivo: motivo.trim(), tipo: tipo.trim(),
-      ajeno: showShared ? Math.min(ajeno, round2(amt)) : 0,
-      invitacion: invitacion ? 1 : 0,
-      deudores: showShared ? deudores.trim() : '',
+      ajeno: showShared ? Math.min(ajenoEf, round2(amt)) : 0,
+      invitacion: allInv ? 1 : (invitacion ? 1 : 0),
+      deudores: showShared ? (per.length ? debtors.map(x => x.n.trim()).join(', ') : deudores.trim()) : '',
+      personas: per.length ? JSON.stringify(per.map(x => ({ n: x.n.trim(), m: round2(Number(x.m) || 0), r: x.r }))) : (editExpense?.personas || ''),
       deudaMetodo: showShared ? deudaMetodo : 'Bizum',
       devuelto: showShared ? devuelto : 'no',
-      meCorresponde: showShared ? meCorresponde : round2(amt),
+      meCorresponde: showShared ? round2(Math.max(0, amt - (per.length ? debtSum : ajeno))) : round2(amt),
       viaje: showShared ? viaje.trim() : '',
       proyectoId,
     };
@@ -127,6 +156,11 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
     }
     onSaved();
   };
+
+  const upP = (i: number, patch: Partial<Persona>) => setPersonas(ps => ps.map((x, k) => (k === i ? { ...x, ...patch } : x)));
+  const addP = () => setPersonas(ps => [...ps, { n: '', m: 0, r: 'deb' }]);
+  const delP = (i: number) => setPersonas(ps => ps.filter((_, k) => k !== i));
+  const allInvited = () => setPersonas(ps => ps.map(x => ({ ...x, r: 'inv' as const })));
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -237,23 +271,39 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
 
             {showShared && (
               <>
+                {personas.length === 0 && (
+                  <div className="hint" style={{ margin: '4px 0 10px' }}>
+                    Compartido: añade a cada persona, su importe y si <b>te lo debe</b> o <b>le invitas</b> (pagas tú).
+                  </div>
+                )}
+                {personas.map((p, i) => (
+                  <div key={i} className="persona-row">
+                    <input type="text" value={p.n} placeholder="Nombre" onChange={e => upP(i, { n: e.target.value })} />
+                    <input type="number" step="0.01" min="0" value={p.m || ''} placeholder="0,00"
+                      onChange={e => upP(i, { m: Math.max(0, Number(e.target.value)) })} />
+                    <div className="role-toggle">
+                      <button type="button" className={p.r === 'deb' ? 'on deb' : ''} onClick={() => upP(i, { r: 'deb' })}>Debe</button>
+                      <button type="button" className={p.r === 'inv' ? 'on inv' : ''} onClick={() => upP(i, { r: 'inv' })}>Invitado</button>
+                    </div>
+                    <button type="button" className="btn ghost x" onClick={() => delP(i)} title="Quitar">✕</button>
+                  </div>
+                ))}
+                <div className="form-row" style={{ gap: 8, marginTop: 4 }}>
+                  <button type="button" className="btn outline small" onClick={addP}>+ Añadir persona</button>
+                  {personas.length > 0 && (
+                    <>
+                      <button type="button" className="btn outline small" onClick={allInvited}>Invitar a todos</button>
+                      <button type="button" className="btn outline small" onClick={() => setPersonas(ps => ps.map(x => ({ ...x, r: 'deb' as const })))}>Que todos deban</button>
+                    </>
+                  )}
+                </div>
                 <div className="form-row three">
-                  <div className="form-group">
-                    <label>Gasto ajeno (EUR)</label>
-                    <input type="number" step="0.01" min="0" value={ajeno || ''} onChange={e => setAjeno(Math.max(0, Number(e.target.value)))} placeholder="0,00" />
-                  </div>
-                  <div className="form-group">
-                    <label>Deudores</label>
-                    <input type="text" value={deudores} onChange={e => setDeudores(e.target.value)} placeholder="¿Quién debe?" />
-                  </div>
                   <div className="form-group">
                     <label>Método devolución</label>
                     <select value={deudaMetodo} onChange={e => setDeudaMetodo(e.target.value)}>
                       {REF.metodos.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                </div>
-                <div className="form-row three">
                   <div className="form-group">
                     <label>Devuelto</label>
                     <select value={devuelto} onChange={e => setDevuelto(e.target.value as 'yes' | 'no')}>
@@ -269,6 +319,12 @@ export default function AddExpense({ isOpen, editExpense, onClose, onSaved, pres
                 <div className="amount-preview">
                   <span>Te corresponde</span>
                   <span>{meCorresponde.toFixed(2).replace('.', ',')} €</span>
+                  {invSum > 0 && (
+                    <>
+                      <span style={{ marginLeft: 14, color: 'var(--muted)' }}>Invitado</span>
+                      <span style={{ color: '#10b981' }}>{invSum.toFixed(2).replace('.', ',')} €</span>
+                    </>
+                  )}
                 </div>
               </>
             )}

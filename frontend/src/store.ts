@@ -124,7 +124,7 @@ export function suggestExpense(desc: string, limit = 30): Suggestion | null {
 interface ExpenseInput {
   date: string; desc: string; amount: number;
   proposito?: string; metodo?: string; motivo?: string; tipo?: string;
-  ajeno?: number; invitacion?: number; deudores?: string; deudaMetodo?: string;
+  ajeno?: number; invitacion?: number; deudores?: string; personas?: string; deudaMetodo?: string;
   devuelto?: 'yes' | 'no'; meCorresponde?: number; viaje?: string; proyectoId?: string;
 }
 
@@ -134,7 +134,7 @@ export function addExpense(input: ExpenseInput): Expense {
     id: genId(), date: input.date, desc: input.desc, amount: input.amount,
     proposito: input.proposito || '', metodo: input.metodo || 'Tarjeta',
     motivo: input.motivo || '', tipo: input.tipo || 'Puntual', ajeno: input.ajeno || 0, invitacion: input.invitacion ? 1 : 0,
-    deudores: input.deudores || '', deudaMetodo: input.deudaMetodo || 'Bizum',
+    deudores: input.deudores || '', personas: input.personas || '', deudaMetodo: input.deudaMetodo || 'Bizum',
     devuelto: input.devuelto || 'no', meCorresponde: input.meCorresponde || 0,
     viaje: input.viaje || '', proyectoId: input.proyectoId || '',
     createdAt: new Date().toISOString(),
@@ -175,6 +175,7 @@ function toServerExpense(e: Expense): ExpenseCreateBody {
     ajeno: !!e.ajeno,
     invitacion: !!e.invitacion,
     deudores: e.deudores || '',
+    personas: e.personas || '',
     deuda_metodo: e.deudaMetodo,
     devuelto: e.devuelto === 'yes',
     me_corresponde: e.meCorresponde,
@@ -196,6 +197,7 @@ function fromServerExpense(s: ServerExpense): Expense {
     ajeno: s.ajeno ? 1 : 0,
     invitacion: s.invitacion ? 1 : 0,
     deudores: s.deudores,
+    personas: s.personas || '',
     deudaMetodo: s.deuda_metodo,
     devuelto: s.devuelto ? 'yes' : 'no',
     meCorresponde: s.me_corresponde,
