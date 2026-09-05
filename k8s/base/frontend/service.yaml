@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: gastos
+  labels:
+    app: gastos
+    component: frontend
+spec:
+  selector:
+    app: gastos
+    component: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

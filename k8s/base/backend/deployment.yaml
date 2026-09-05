@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: gastos
+  labels:
+    app: gastos
+    component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: gastos
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: gastos
+        component: backend
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: backend
+          image: gastos-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+          env:
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: gastos-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gastos-secrets
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: gastos-secrets
+                  key: DB_NAME
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: gastos-secrets
+                  key: JWT_SECRET
+            - name: APP_URL
+              value: https://mibolsillo.cabrasky.net
+            - name: FRONTEND_URL
+              value: "https://mibolsillo.cabrasky.net"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
